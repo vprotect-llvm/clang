@@ -405,6 +405,44 @@ void CodeGenModule::Release() {
   EmitVersionIdentMetadata();
 
   EmitTargetMetadata();
+
+  /******************************************************************/
+  llvm::NamedMDNode *HierarchyMetadata = getModule().getOrInsertNamedMetadata("cps.hierarchy");
+  llvm::NamedMDNode *VTableMetadata = getModule().getOrInsertNamedMetadata("cps.vtables");
+  for(auto typ : Context.getTypes()){
+    RecordType* rt = nullptr;
+    if((rt = dyn_cast<RecordType>(typ))){
+      CXXRecordDecl* Decl = nullptr;
+
+
+      if((Decl = dyn_cast<CXXRecordDecl>(rt->getDecl())) && Decl->hasDefinition()){
+
+        /* Add metadata for relation between class and vtable */
+        if(Decl->isDynamicClass()){
+          llvm::Value *ClassToVT[] = {
+            llvm::MDString::get(getLLVMContext(), Context.getTypeDeclType(Decl).getAsString()),
+            getCXXABI().getAddrOfVTable(Decl, CharUnits())
+          };
+          VTableMetadata->addOperand(llvm::MDNode::get(getLLVMContext(), ClassToVT));
+        }
+
+        /* Add metadata for the relation between a class and its parents */
+        if(Decl->getNumBases()){
+          CXXRecordDecl::base_class_const_iterator iter;
+          for(iter = Decl->bases_begin(); iter != Decl->bases_end(); ++iter){
+            llvm::Value *ParentChild[] = {
+              llvm::MDString::get(getLLVMContext(), Context.getTypeDeclType(Decl).getAsString()),
+              llvm::MDString::get(getLLVMContext(), iter->getType().getAsString())
+            };
+            HierarchyMetadata->addOperand(llvm::MDNode::get(getLLVMContext(), ParentChild));
+          }
+        }
+
+
+      }
+    }
+  }
+  /*********************************************************************/
 }
 
 void CodeGenModule::UpdateCompletedType(const TagDecl *TD) {
