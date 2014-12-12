@@ -2068,6 +2068,14 @@ llvm::Value *CodeGenFunction::GetVTablePtr(llvm::Value *This,
                                            llvm::Type *Ty) {
   llvm::Value *VTablePtrSrc = Builder.CreateBitCast(This, Ty->getPointerTo());
   llvm::Instruction *VTable = Builder.CreateLoad(VTablePtrSrc, "vtable");
+
+  llvm::Value *StaticTyp[] = {
+       llvm::UndefValue::get(This->getType())
+  };
+
+  //Set magic metadata
+  VTable->setMetadata("cps.vload", llvm::MDNode::get(getLLVMContext(), StaticTyp));
+
   CGM.DecorateInstruction(VTable, CGM.getTBAAInfoForVTablePtr());
   return VTable;
 }
