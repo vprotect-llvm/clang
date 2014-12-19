@@ -1981,8 +1981,9 @@ llvm::Value *CodeGenFunction::GetVTablePtr(llvm::Value *This,
   llvm::Value *VTablePtrSrc = Builder.CreateBitCast(This, Ty->getPointerTo());
   llvm::Instruction *VTable = Builder.CreateLoad(VTablePtrSrc, "vtable");
 
+  llvm::PointerType *PtrTy = dyn_cast<llvm::PointerType>(This->getType());
   llvm::Value *StaticTyp[] = {
-       llvm::UndefValue::get(This->getType())
+       llvm::UndefValue::get(PtrTy->getElementType())
   };
 
   //Set magic metadata
