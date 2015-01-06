@@ -3496,7 +3496,7 @@ void CodeGenModule::EmitCPSVirtualMetadata(){
         /* Add metadata for the relation between a class and its parents */
         if(Decl->getNumBases()){
           if(Decl->getNumBases() > 1){
-            ::fprintf(stderr, "Attention, we do not support multiple bases yet");
+            ::fprintf(stderr, "Attention, we do not support multiple bases yet\n");
           }
           for(CXXBaseSpecifier Base : Decl->bases()){
             llvm::Type *ParentTyp = getTypes().ConvertType(Base.getType());
