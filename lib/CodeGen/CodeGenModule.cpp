@@ -3471,15 +3471,15 @@ void CodeGenModule::EmitTargetMetadata() {
 void CodeGenModule::EmitCPSVirtualMetadata(){
   llvm::NamedMDNode *HierarchyMetadata = getModule().getOrInsertNamedMetadata("cps.hierarchy");
   llvm::NamedMDNode *VTableMetadata = getModule().getOrInsertNamedMetadata("cps.vtables");
-  for(Type *Typ : Context.getTypes()){
-    RecordType* RT = nullptr;
-    if((RT = dyn_cast<RecordType>(Typ)) && !RT->isDependentType()){
+  for(clang::Type *Typ : Context.getTypes()){
+    clang::RecordType* RT = nullptr;
+    if((RT = dyn_cast<clang::RecordType>(Typ)) && !RT->isDependentType()){
       CXXRecordDecl* Decl = nullptr;
 
 
       if((Decl = dyn_cast<CXXRecordDecl>(RT->getDecl())) && Decl->hasDefinition()){
-        QualType clangTyp = Context.getTypeDeclType(Decl);
-        llvm::Type *DeclTyp = getTypes().ConvertType(clangTyp);
+        clang::QualType ClangDeclTyp = Context.getTypeDeclType(Decl);
+        llvm::Type *DeclTyp = getTypes().ConvertType(ClangDeclTyp);
         llvm::Value *UndefForDecl = llvm::UndefValue::get(DeclTyp);
 
         if(Decl->isDynamicClass()){
@@ -3489,7 +3489,7 @@ void CodeGenModule::EmitCPSVirtualMetadata(){
 
           /* Add metadata for relation between class and vtable */
           for(CXXBaseSpecifier Base : Decl->bases()){
-            QualType BaseTyp = Base.getType();
+            clang::QualType BaseTyp = Base.getType();
             if(BaseTyp->isClassType() && BaseTyp->getAsCXXRecordDecl()->isDynamicClass()){
               llvm::Type *ParentTyp = getTypes().ConvertType(BaseTyp);
 
