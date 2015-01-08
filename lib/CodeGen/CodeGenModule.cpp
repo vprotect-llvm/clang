@@ -3337,31 +3337,39 @@ void CodeGenModule::EmitCPSVirtualMetadata(){
         llvm::Type *DeclTyp = getTypes().ConvertType(clangTyp);
         llvm::Value *UndefForDecl = llvm::UndefValue::get(DeclTyp);
 
-        /* Add metadata for relation between class and vtable */
         if(Decl->isDynamicClass()){
-          llvm::Value* VTable = getCXXABI().getAddrOfVTable(Decl, CharUnits());
 
-          llvm::Value *ClassToVT[] = {
-            UndefForDecl,
-            VTable
-          };
-          VTableMetadata->addOperand(llvm::MDNode::get(getLLVMContext(), ClassToVT));
-        }
+          /* Count the number of classes we extend that have a Vtable */
+          int count = 0;
 
-        /* Add metadata for the relation between a class and its parents */
-        if(Decl->getNumBases()){
-          if(Decl->getNumBases() > 1){
-            ::fprintf(stderr, "Attention, we do not support multiple bases yet\n");
-          }
+          /* Add metadata for relation between class and vtable */
           for(CXXBaseSpecifier Base : Decl->bases()){
-            llvm::Type *ParentTyp = getTypes().ConvertType(Base.getType());
+            QualType BaseTyp = Base.getType();
+            if(BaseTyp->isClassType() && BaseTyp->getAsCXXRecordDecl()->isDynamicClass()){
+              llvm::Type *ParentTyp = getTypes().ConvertType(BaseTyp);
 
-            llvm::Value *ChildParent[] = {
-              UndefForDecl,
-              llvm::UndefValue::get(ParentTyp)
-            };
-            HierarchyMetadata->addOperand(llvm::MDNode::get(getLLVMContext(), ChildParent));
+              llvm::Value *ChildParent[] = {
+                UndefForDecl,
+                llvm::UndefValue::get(ParentTyp)
+              };
+              HierarchyMetadata->addOperand(llvm::MDNode::get(getLLVMContext(), ChildParent));
+              ++count;
+            }
           }
+
+          /* Add metadata for the relation between a class and its parents */
+          if(count > 1){
+            llvm::errs() << "Can't protect vtable access for class " << Decl->getName() << " because it extends several classes\n";
+          }else{
+            llvm::Value* VTable = getCXXABI().getAddrOfVTable(Decl, CharUnits());
+
+            llvm::Value *ClassToVT[] = {
+              UndefForDecl,
+              VTable
+            };
+            VTableMetadata->addOperand(llvm::MDNode::get(getLLVMContext(), ClassToVT));
+          }
+
         }
       }
     }
