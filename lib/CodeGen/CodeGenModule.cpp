@@ -3359,17 +3359,16 @@ void CodeGenModule::EmitCPSVirtualMetadata(){
 
           /* Add metadata for the relation between a class and its parents */
           if(count > 1){
-            llvm::errs() << "Can't protect vtable access for class " << Decl->getName() << " because it extends several classes\n";
-          }else{
-            llvm::Value* VTable = getCXXABI().getAddrOfVTable(Decl, CharUnits());
-
-            llvm::Value *ClassToVT[] = {
-              UndefForDecl,
-              VTable
-            };
-            VTableMetadata->addOperand(llvm::MDNode::get(getLLVMContext(), ClassToVT));
+            llvm::errs() << "Warning: Multiple inheritence support still has some bugs, protecting vtable access for class " << Decl->getName() << " might crash the program\n";
           }
 
+          llvm::Value* VTable = getCXXABI().getAddrOfVTable(Decl, CharUnits());
+
+          llvm::Value *ClassToVT[] = {
+            UndefForDecl,
+            VTable
+          };
+          VTableMetadata->addOperand(llvm::MDNode::get(getLLVMContext(), ClassToVT));
         }
       }
     }
