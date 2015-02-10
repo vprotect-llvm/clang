@@ -69,6 +69,8 @@ public:
 
   llvm::Type *ConvertMemberPointerType(const MemberPointerType *MPT) override;
 
+  void AddCPSMetadata(CodeGenFunction &CGF, llvm::Value* VTable, llvm::Type* StaticTyp, llvm::StringRef name);
+
   llvm::Value *
     EmitLoadOfMemberFunctionPointer(CodeGenFunction &CGF,
                                     const Expr *E,
@@ -351,6 +353,16 @@ ItaniumCXXABI::ConvertMemberPointerType(const MemberPointerType *MPT) {
   return llvm::StructType::get(CGM.PtrDiffTy, CGM.PtrDiffTy, NULL);
 }
 
+void ItaniumCXXABI::AddCPSMetadata(CodeGenFunction &CGF,llvm::Value* VTable, llvm::Type* StaticTyp, llvm::StringRef name){
+
+  llvm::Value *TypeMetadata[] = {
+       llvm::UndefValue::get(StaticTyp)
+  };
+
+  //Set magic metadata
+  dyn_cast<llvm::Instruction>(VTable)->setMetadata(name, llvm::MDNode::get(CGF.getLLVMContext(), TypeMetadata));
+}
+
 /// In the Itanium and ARM ABIs, method pointers have the form:
 ///   struct { ptrdiff_t ptr; ptrdiff_t adj; } memptr;
 ///
@@ -426,6 +438,7 @@ llvm::Value *ItaniumCXXABI::EmitLoadOfMemberFunctionPointer(
   // Cast the adjusted this to a pointer to vtable pointer and load.
   llvm::Type *VTableTy = Builder.getInt8PtrTy();
   llvm::Value *VTable = CGF.GetVTablePtr(This, VTableTy);
+  AddCPSMetadata(CGF, VTable, dyn_cast<llvm::PointerType>(This->getType())->getElementType(), "cps.memptr");
 
   // Apply the offset.
   llvm::Value *VTableOffset = FnAsInt;
@@ -961,6 +974,7 @@ llvm::Value *ItaniumCXXABI::EmitTypeid(CodeGenFunction &CGF,
                                        llvm::Type *StdTypeInfoPtrTy) {
   llvm::Value *Value =
       CGF.GetVTablePtr(ThisPtr, StdTypeInfoPtrTy->getPointerTo());
+  AddCPSMetadata(CGF, Value, CGF.ConvertType(SrcRecordTy), "cps.typeid");
 
   // Load the type info.
   Value = CGF.Builder.CreateConstInBoundsGEP1_64(Value, -1ULL);
@@ -1024,6 +1038,7 @@ llvm::Value *ItaniumCXXABI::EmitDynamicCastToVoid(CodeGenFunction &CGF,
 
   // Get the vtable pointer.
   llvm::Value *VTable = CGF.GetVTablePtr(Value, PtrDiffLTy->getPointerTo());
+  AddCPSMetadata(CGF, VTable, CGF.ConvertType(SrcRecordTy), "cps.voidcast");
 
   // Get the offset-to-top from the vtable.
   llvm::Value *OffsetToTop =
@@ -1050,6 +1065,8 @@ ItaniumCXXABI::GetVirtualBaseClassOffset(CodeGenFunction &CGF,
                                          const CXXRecordDecl *ClassDecl,
                                          const CXXRecordDecl *BaseClassDecl) {
   llvm::Value *VTablePtr = CGF.GetVTablePtr(This, CGM.Int8PtrTy);
+  AddCPSMetadata(CGF, VTablePtr, CGF.ConvertType(ClassDecl), "cps.vbase.offset");
+
   CharUnits VBaseOffsetOffset =
       CGM.getItaniumVTableContext().getVirtualBaseOffsetOffset(ClassDecl,
                                                                BaseClassDecl);
@@ -1332,6 +1349,7 @@ llvm::Value *ItaniumCXXABI::getVirtualFunctionPointer(CodeGenFunction &CGF,
   GD = GD.getCanonicalDecl();
   Ty = Ty->getPointerTo()->getPointerTo();
   llvm::Value *VTable = CGF.GetVTablePtr(This, Ty);
+  AddCPSMetadata(CGF, VTable, dyn_cast<llvm::PointerType>(This->getType())->getElementType(), "cps.vfn");
 
   uint64_t VTableIndex = CGM.getItaniumVTableContext().getMethodVTableIndex(GD);
   llvm::Value *VFuncPtr =
