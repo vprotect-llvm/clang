@@ -406,7 +406,9 @@ void CodeGenModule::Release() {
 
   EmitTargetMetadata();
 
-  EmitCPSVirtualMetadata();
+  if(getTarget().getCXXABI().isItaniumFamily()){
+    EmitCPSVirtualMetadata();
+  }
 
 }
 
